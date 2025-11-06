@@ -1,57 +1,41 @@
-// src/components/Login.js
 import React, { useState } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 function Login() {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
-  const { email, password } = formData;
+  const navigate = useNavigate();
 
-  const onChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
-
-  const onSubmit = async e => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      // Gọi API của SV1 (Backend)
-      const res = await axios.post('http://localhost:5000/api/auth/login', formData);
+      const res = await axios.post('http://localhost:5000/api/users/login', { email, password });
 
-      // YÊU CẦU: Lưu token
       localStorage.setItem('token', res.data.token);
-      
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+
       setMessage('Đăng nhập thành công!');
+      console.log('✅ JWT Token:', res.data.token);
+      console.log('👤 User:', res.data.user);
 
-      // YÊU CẦU SCREENSHOT 2: In JWT token ra Console
-      console.log('JWT Token:', res.data.token);
+      // ✅ Tự động chuyển sang trang Profile
+      setTimeout(() => navigate('/profile'), 1000);
 
-    } catch (err) {
-      setMessage(err.response.data.message); // "Email hoặc mật khẩu không đúng."
+    } catch (error) {
+      setMessage(error.response?.data?.message || 'Lỗi đăng nhập');
     }
-  };
-
-  // YÊU CẦU: Chức năng Đăng xuất
-  const handleLogout = () => {
-    localStorage.removeItem('token'); // Xóa token phía client
-    setMessage('Đã đăng xuất.');
-    console.log('Đã đăng xuất, xóa token.');
   };
 
   return (
     <div>
-      <h2>Form Đăng Nhập</h2>
-      <form onSubmit={onSubmit}>
-        <input type="email" placeholder="Email" name="email" value={email} onChange={onChange} required />
-        <br />
-        <input type="password" placeholder="Password" name="password" value={password} onChange={onChange} required />
-        <br />
-        <button type="submit">Đăng Nhập</button>
+      <h2>Đăng nhập</h2>
+      <form onSubmit={handleLogin}>
+        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required /><br />
+        <input type="password" placeholder="Mật khẩu" value={password} onChange={(e) => setPassword(e.target.value)} required /><br />
+        <button type="submit">Đăng nhập</button>
       </form>
-
-      <br />
-      <button onClick={handleLogout}>Đăng Xuất</button>
-      
       {message && <p style={{ color: 'blue' }}>{message}</p>}
     </div>
   );

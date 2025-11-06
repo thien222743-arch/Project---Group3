@@ -1,106 +1,84 @@
-// frontend/src/components/Profile.js
+// src/components/Profile.js
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 function Profile() {
-  const [userData, setUserData] = useState({
-    username: '',
-    email: ''
-  });
+  const [user, setUser] = useState(null);
   const [message, setMessage] = useState('');
+  const [formData, setFormData] = useState({ username: '', name: '', email: '' });
 
-  // 1. Lấy token từ localStorage (từ Hoạt động 1)
   const token = localStorage.getItem('token');
 
-  // 2. Chức năng: Lấy thông tin cá nhân (VIEW)
-  //    (Chạy 1 lần khi component được tải)
+  // ✅ Lấy thông tin profile khi load trang
   useEffect(() => {
     const fetchProfile = async () => {
-      // Nếu không có token (chưa đăng nhập), không làm gì cả
-      if (!token) {
-        setMessage('Bạn cần đăng nhập để xem thông tin.');
-        return;
-      }
-
       try {
-        // === BƯỚC QUAN TRỌNG NHẤT (Protected Route) ===
-        // Tạo 1 "config" để gửi "vé" (Token) trong Header
-        const config = {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` // Gửi "vé"
-          }
-        };
-
-        // Gọi API 'GET /profile' CÓ BẢO VỆ của SV1
-        const res = await axios.get('http://localhost:5000/api/auth/profile', config);
-        
-        setUserData(res.data); // Cập nhật state với thông tin user
-        // SCREENSHOT 1 SẼ CHỤP TỪ ĐÂY
-      
+        const res = await axios.get('http://localhost:5000/api/users/profile', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setUser(res.data.user);
+        setFormData({
+          username: res.data.user.username,
+          name: res.data.user.name,
+          email: res.data.user.email
+        });
       } catch (err) {
-        setMessage('Token không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.');
-        localStorage.removeItem('token'); // Xóa token hỏng
+        console.error(err);
+        setMessage('❌ Vui lòng đăng nhập lại.');
       }
     };
-
     fetchProfile();
-  }, [token]); // Chạy lại khi token thay đổi
+  }, [token]);
 
-  // 3. Chức năng: Xử lý khi gõ vào Form
-  const onChange = e => setUserData({ ...userData, [e.target.name]: e.target.value });
-
-  // 4. Chức năng: Cập nhật thông tin (UPDATE)
-  const onSubmit = async e => {
+  // ✅ Cập nhật profile
+  const handleUpdate = async (e) => {
     e.preventDefault();
-    if (!token) return; // Không có token, không làm gì cả
-
     try {
-      // Gửi token tương tự như trên
-      const config = {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      };
-      
-      // Dữ liệu cần cập nhật (chỉ username, vì email thường không đổi)
-      const body = { username: userData.username };
-
-      // Gọi API 'PUT /profile' CÓ BẢO VỆ của SV1
-      const res = await axios.put('http://localhost:5000/api/auth/profile', body, config);
-      
-      setMessage('Cập nhật thông tin thành công!');
-      setUserData(res.data); // Cập nhật lại state với info mới
-
-      // SCREENSHOT 2 SẼ CHỤP TỪ ĐÂY
-
+      const res = await axios.put(
+        'http://localhost:5000/api/users/profile',
+        formData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMessage('✅ Cập nhật thành công!');
+      setUser(res.data.user);
     } catch (err) {
-      setMessage('Cập nhật thất bại. Vui lòng thử lại.');
+      console.error('❌ Lỗi cập nhật:', err);
+      if (err.response?.status === 401) setMessage('⚠️ Token hết hạn, vui lòng đăng nhập lại.');
+      else setMessage('❌ Cập nhật thất bại.');
     }
   };
 
-  // 5. Giao diện (Render)
-  return (
-    <div>
-      <h2>Trang Thông Tin Cá Nhân</h2>
-      
-      {/* SCREENSHOT 1: Hiển thị user info */}
-      <div>
-        <p><strong>Email:</strong> {userData.email}</p><p><strong>Username (hiện tại):</strong> {userData.username}</p>
-      </div>
+  if (!token) return <p>Bạn cần đăng nhập trước.</p>;
 
-      <hr />
-      
-      {/* SCREENSHOT 2: Form cập nhật thông tin */}
-      <h3>Cập nhật thông tin</h3>
-      <form onSubmit={onSubmit}>
-        <label>Username mới:</label>
+  return (
+    <div style={{ padding: 20 }}>
+      <h2>Thông tin cá nhân</h2>
+
+      {user && (
+        <div>
+          <p><strong>Email:</strong> {user.email}</p>
+          <p><strong>Username:</strong> {user.username}</p>
+        </div>
+      )}
+
+      <form onSubmit={handleUpdate}>
         <input
           type="text"
-          name="username"
-          value={userData.username}
-          onChange={onChange}
+          placeholder="Tên người dùng"
+          value={formData.username}
+          onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+        />
+        <input
+          type="text"
+          placeholder="Tên hiển thị"
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+        />
+        <input
+          type="email"
+          placeholder="Email"
+          value={formData.email}
+          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
         />
         <button type="submit">Cập nhật</button>
       </form>

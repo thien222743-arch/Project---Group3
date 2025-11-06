@@ -1,87 +1,144 @@
-// Import các "công cụ"
-const User = require('../models/User'); // Import "khuôn"
-const bcrypt = require('bcryptjs'); // Thư viện mã hóa
-const jwt = require('jsonwebtoken'); // Thư viện tạo token
+// controllers/userController.js
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+require('dotenv').config();
 
-// 1. CHỨC NĂNG ĐĂNG KÝ (SIGNUP)
-exports.signup = async (req, res) => {
+// ✅ [1] Đăng ký người dùng mới
+const signup = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, name } = req.body;
 
-    // Yêu cầu: Kiểm tra email trùng
-    const existingUser = await User.findOne({ email: email });
-    if (existingUser) {
-      return res.status(400).json({ message: 'Email này đã tồn tại.' });
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: 'Vui lòng nhập đầy đủ thông tin.' });
     }
 
-    // Yêu cầu: Mã hóa mật khẩu (bcrypt)
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email đã được sử dụng.' });
+    }
 
-    // Tạo user mới từ "khuôn"
-    const newUser = new User({
+    // Mã hóa mật khẩu
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = await User.create({
       username,
       email,
       password: hashedPassword,
+      name: name || ''
     });
 
-    // Lưu vào database
-    await newUser.save();
-
-    // Trả về thành công
-    res.status(201).json({ message: 'Đăng ký thành công!' });
-
+    return res.status(201).json({
+      message: 'Đăng ký thành công',
+      user: { id: newUser._id, username: newUser.username, email: newUser.email, name: newUser.name }
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server: ' + error.message });
+    console.error('❌ Lỗi đăng ký:', error);
+    res.status(500).json({ message: 'Lỗi server khi đăng ký.' });
   }
 };
 
-// 2. CHỨC NĂNG ĐĂNG NHẬP (LOGIN)
-exports.login = async (req, res) => {
+// ✅ [2] Đăng nhập người dùng
+const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Yêu cầu: Xác thực email
-    const user = await User.findOne({ email: email });
-    if (!user) {
-      return res.status(401).json({ message: 'Email hoặc mật khẩu không đúng.' });
-    }
+    // Kiểm tra email
+    const user = await User.findOne({ email });
+    if (!user) return res.status(401).json({ message: 'Email không tồn tại.' });
 
-    // Yêu cầu: Xác thực password
+    // Kiểm tra mật khẩu
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Email hoặc mật khẩu không đúng.' });
-    }
+    if (!isMatch) return res.status(401).json({ message: 'Sai mật khẩu.' });
 
-    // Yêu cầu: Trả về JWT token
-    const payload = {
-      userId: user._id,
-      email: user.email,
-      role: user.role
-    };
-
-    // Tạo token với khóa bí mật từ file .env
+    // Tạo JWT thật
     const token = jwt.sign(
-      payload,
-      process.env.JWT_SECRET, // Lấy từ file .env
-      { expiresIn: '1h' } // Token hết hạn sau 1 giờ
+      { id: user._id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }
     );
 
-    // Trả token về cho SV2
-    res.status(200).json({
-      message: 'Đăng nhập thành công!',
-      token: token
+    return res.status(200).json({
+      message: 'Đăng nhập thành công',
+      token,
+      user: { id: user._id, username: user.username, email: user.email, name: user.name }
     });
-
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server: ' + error.message });
+    console.error('❌ Lỗi đăng nhập:', error);
+    res.status(500).json({ message: 'Lỗi server khi đăng nhập.' });
   }
 };
 
-// 3. CHỨC NĂNG ĐĂNG XUẤT (LOGOUT)
-exports.logout = (req, res) => {
-  // Yêu cầu: "xóa token phía client."
-  // Việc này là của SV2 (Frontend) làm.
-  // API của bạn chỉ cần gửi 1 thông báo là đã nhận lệnh.
-  res.status(200).json({ message: 'Đã nhận yêu cầu đăng xuất.' });
+// ✅ [3] Xem thông tin cá nhân (cần token hợp lệ)
+const viewProfile = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ message: 'Chưa đăng nhập.' });
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const user = await User.findById(decoded.id).select('-password');
+    if (!user) return res.status(404).json({ message: 'Không tìm thấy người dùng.' });
+
+    res.status(200).json({ message: 'Lấy thông tin thành công', user });
+  } catch (error) {
+    console.error('❌ Lỗi xem profile:', error);
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Phiên đăng nhập đã hết hạn.' });
+    }
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: 'Token không hợp lệ.' });
+    }
+    res.status(500).json({ message: 'Lỗi server khi xem profile.' });
+  }
+};
+
+// ✅ [4] Cập nhật thông tin cá nhân
+const updateProfile = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ message: 'Chưa đăng nhập.' });
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const { username, name, email, password } = req.body;
+
+    const updateData = { username, name, email };
+
+    // Nếu người dùng nhập mật khẩu mới → mã hóa lại
+    if (password && password.trim() !== '') {
+      updateData.password = await bcrypt.hash(password, 10);
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      decoded.id,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!updatedUser) return res.status(404).json({ message: 'Không tìm thấy người dùng.' });
+
+    res.status(200).json({ message: 'Cập nhật thành công', user: updatedUser });
+  } catch (error) {
+    console.error('❌ Lỗi cập nhật profile:', error);
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Phiên đăng nhập đã hết hạn.' });
+    }
+    res.status(500).json({ message: 'Lỗi server khi cập nhật profile.' });
+  }
+};
+
+// ✅ [5] Đăng xuất (frontend tự xử lý)
+const logout = (req, res) => {
+  res.json({ message: 'Đăng xuất thành công.' });
+};
+
+module.exports = {
+  signup,
+  login,
+  logout,
+  viewProfile,
+  updateProfile,
 };

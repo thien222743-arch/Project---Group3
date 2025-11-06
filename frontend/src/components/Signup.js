@@ -1,51 +1,98 @@
-// src/components/Signup.js
 import React, { useState } from 'react';
-import axios from 'axios'; // Import axios
+import axios from 'axios';
 
 function Signup() {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
-    password: ''
+    password: '',
+    name: '' // ✅ thêm name để backend nhận đầy đủ
   });
-  const [message, setMessage] = useState(''); // Để lưu thông báo kết quả
 
-  const { username, email, password } = formData;
-
-  const onChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
-
-  const onSubmit = async e => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
     try {
-      // Gọi API của SV1 (Backend)
-      // Đây chính là URL mà SV1 đã tạo:
-      const res = await axios.post('http://localhost:5000/api/auth/signup', formData);
+      // ✅ Gửi đúng các trường mà backend yêu cầu
+      const res = await axios.post('http://localhost:5000/api/users/signup', {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        name: formData.name
+      });
 
-      // Cập nhật thông báo
-      setMessage(res.data.message); // "Đăng ký thành công!"
+      alert('🎉 Đăng ký thành công!');
+      console.log('Phản hồi từ server:', res.data);
 
-    } catch (err) {
-      // Nếu có lỗi (ví dụ: email trùng)
-      setMessage(err.response.data.message); // "Email này đã tồn tại."
+      // Xóa form sau khi đăng ký xong
+      setFormData({ username: '', email: '', password: '', name: '' });
+    } catch (error) {
+      console.error('Lỗi đăng ký:', error.response?.data || error.message);
+      alert(error.response?.data?.message || 'Đăng ký thất bại, vui lòng thử lại!');
     }
   };
 
   return (
-    <div>
-      <h2>Form Đăng Ký</h2>
-      <form onSubmit={onSubmit}>
-        <input type="text" placeholder="Username" name="username" value={username} onChange={onChange} required />
-        <br />
-        <input type="email" placeholder="Email" name="email" value={email} onChange={onChange} required />
-        <br />
-        <input type="password" placeholder="Password" name="password" value={password} onChange={onChange} required />
-        <br />
-        <button type="submit">Đăng Ký</button>
-      </form>
-      
-      {/* YÊU CẦU SCREENSHOT 1: Form + Thông báo kết quả */}
-      {message && <p style={{ color: 'green' }}>{message}</p>}
-    </div>
+    <form
+      onSubmit={handleSubmit}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        width: 300,
+        margin: '50px auto',
+        padding: 20,
+        border: '1px solid #ccc',
+        borderRadius: 10,
+      }}
+    >
+      <h2 style={{ textAlign: 'center' }}>Đăng ký tài khoản</h2>
+
+      <input
+        type="text"
+        placeholder="Tên người dùng"
+        value={formData.username}
+        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+        required
+      />
+
+      <input
+        type="text"
+        placeholder="Họ và tên"
+        value={formData.name}
+        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+      />
+
+      <input
+        type="email"
+        placeholder="Email (Gmail)"
+        value={formData.email}
+        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+        required
+      />
+
+      <input
+        type="password"
+        placeholder="Mật khẩu"
+        value={formData.password}
+        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+        required
+      />
+
+      <button
+        type="submit"
+        style={{
+          marginTop: 10,
+          padding: '8px 0',
+          backgroundColor: '#4CAF50',
+          color: 'white',
+          border: 'none',
+          borderRadius: 5,
+          cursor: 'pointer'
+        }}
+      >
+        Đăng ký
+      </button>
+    </form>
   );
 }
 
