@@ -1,26 +1,32 @@
-import React, { useState } from 'react';
-import UserList from './components/UserList';
-import AddUser from './components/AddUser';
-import './App.css'; // Giả định App.css
+// frontend/src/App.js
+import React from 'react';
+import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
+import Signup from './components/Signup';
+import Login from './components/Login';
+import Profile from './components/Profile'; // <-- 1. Import Profile
 
 function App() {
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  // Hàm được gọi khi user mới được thêm thành công
-  const handleUserAdded = () => {
-    // Tăng key để buộc component UserList re-render
-    setRefreshKey(prevKey => prevKey + 1); 
-  };
-
   return (
-    <div className="App">
-      <h1>Quản lý người dùng</h1>
-      <hr />
-      <AddUser onUserAdded={handleUserAdded} />
-      <hr />
-      {/* Dùng key để buộc component được khởi tạo lại khi user mới được thêm */}
-      <UserList key={refreshKey} /> 
-    </div>
+    <Router>
+      <div>
+        {/* Tạo link để chuyển trang */}
+        <nav>
+          <Link to="/signup" style={{ marginRight: '10px' }}>Đăng Ký</Link>
+          <Link to="/login" style={{ marginRight: '10px' }}>Đăng Nhập</Link>
+          <Link to="/profile">Thông Tin Cá Nhân</Link> {/* <-- 2. Thêm Link */}
+        </nav>
+
+        <hr />
+
+        {/* Định nghĩa các trang */}
+        <Routes>
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/profile" element={<Profile />} /> {/* <-- 3. Thêm Route */}
+          <Route path="/" element={<Login />} /> {/* Mặc định là trang Login */}
+        </Routes>
+      </div>
+    </Router>
   );
 }
 
