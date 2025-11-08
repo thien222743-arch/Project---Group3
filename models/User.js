@@ -1,28 +1,32 @@
+// backend/models/User.js (Nhiệm vụ của SV3)
+
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-// Đây là Schema (khuôn mẫu) mà SV3 chịu trách nhiệm
-// Nó có email (unique), password, và role (default là 'user')
 const userSchema = new Schema({
-  username: {
+  username: { type: String, required: true },
+  email: { type: String, required: true, unique: true, lowercase: true },
+  password: { type: String, required: true },
+  role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  
+  // === TRƯỜNG MỚI CHO HOẠT ĐỘNG 4 (SV3 Thêm vào) ===
+
+  // 1️⃣ Upload Avatar (Tích hợp Cloudinary)
+  avatar: {
     type: String,
-    required: true,
+    default: "https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg" // Ảnh mặc định
   },
-  email: {
-    type: String,
-    required: true,
-    unique: true, // <-- Đảm bảo kiểm tra email trùng
-    lowercase: true,
+
+  // 2️⃣ Token Reset Password
+  resetPasswordToken: {
+    type: String
   },
-  password: {
-    type: String,
-    required: true, // <-- Mật khẩu này sẽ được mã hóa (việc của bạn)
-  },
-  role: {
-    type: String,
-    enum: ['user', 'admin'],
-    default: 'user' // <-- Yêu cầu: có role
+
+  // 3️⃣ Thời gian hết hạn của token reset
+  resetPasswordExpires: {
+    type: Date
   }
-}, { timestamps: true }); // Tự động thêm 'createdAt' và 'updatedAt'
+
+}, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);
