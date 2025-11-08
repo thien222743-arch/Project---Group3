@@ -1,3 +1,4 @@
+
 // controllers/userController.js
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -142,3 +143,56 @@ module.exports = {
   viewProfile,
   updateProfile,
 };
+
+// ... (code 3 hàm signup, login, logout đã có ở trên) ...
+
+// ---- CHỨC NĂNG 4: XEM THÔNG TIN CÁ NHÂN (GET) ----
+exports.getProfile = async (req, res) => {
+  // Nhờ có authMiddleware, chúng ta đã có thông tin user trong 'req.user'
+  // Chúng ta không cần tìm lại user nữa!
+  const user = req.user;
+  
+  if (user) {
+    res.status(200).json({
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      role: user.role
+    });
+  } else {
+    res.status(404).json({ message: 'Không tìm thấy người dùng.' });
+  }
+};
+
+// ---- CHỨC NĂNG 5: CẬP NHẬT THÔNG TIN CÁ NHÂN (PUT) ----
+exports.updateProfile = async (req, res) => {
+  try {
+    // 1. Lấy user từ middleware
+    const user = await User.findById(req.user._id);
+
+    if (user) {
+      // 2. Cập nhật thông tin (ví dụ: chỉ cập nhật username)
+      // (Bạn có thể thêm các trường khác như bio, avatar...)
+      user.username = req.body.username || user.username;
+      
+      // (Nếu muốn cập nhật password, bạn phải mã hóa lại, ở đây ta bỏ qua)
+
+      // 3. Lưu lại
+      const updatedUser = await user.save();
+      
+      // 4. Trả về thông tin đã cập nhật (bỏ password)
+      res.status(200).json({
+        _id: updatedUser._id,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        role: updatedUser.role,
+      });
+
+    } else {
+      res.status(404).json({ message: 'Không tìm thấy người dùng.' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server: ' + error.message });
+  }
+};
+
